@@ -32,7 +32,7 @@ void create(void* we)
 	WindowInfo winInfo = {};
 	Window Mainwindow;
 	Window Childwindow;
-	WindowEvent windowEvent = *(WindowEvent*)we;
+	WindowEvent* windowEvent = static_cast<WindowEvent*>(we);
 
 	winInfo.title = "test";
 	winInfo.caption = true;
@@ -45,7 +45,7 @@ void create(void* we)
 
 
 	int result;
-	if ((result = guiCreateWindow(winInfo, &Mainwindow, windowEvent))) printf("error : %d\n", result);
+	if ((result = guiCreateWindow(winInfo, &Mainwindow, *windowEvent))) printf("error : %d\n", result);
 	winInfo.title = "child";
 	winInfo.caption = false;
 	winInfo.child = true;
@@ -54,7 +54,7 @@ void create(void* we)
 	winInfo.height = 300;
 	winInfo.width = 600;
 	winInfo.resizable = true;
-	if ((result = guiCreateWindow(winInfo, &Childwindow, windowEvent))) printf("error : %d\n", result);
+	if ((result = guiCreateWindow(winInfo, &Childwindow, *windowEvent))) printf("error : %d\n", result);
 	printf("create Thread\n");
 	MainLoop(&Mainwindow);
 };
@@ -68,11 +68,10 @@ int VGMain
 	eventHandle.OnUserQuit = Quit;
 	eventHandle.OnUserKeyDown = keydown;
 
-	thread createThread;
-	initThread(&createThread, create, (void*)&eventHandle);
-	createThread.start();
+	thread _Thread;
+	initThread(&_Thread, (THREADCALLBACK)create, (void*)&eventHandle);
 
 	while(running); puts("main thread output\n");
-	createThread.shutdown();
+	//deleteThread(&_Thread);
 	return 0;
 }

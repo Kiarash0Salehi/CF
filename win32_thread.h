@@ -6,7 +6,10 @@ extern "C"
 {
 #endif
 
-bool initThread(thread* Thread, void (*func)(void*), void* data);
+bool initThread(thread*, THREADCALLBACK, void*);
+bool stopThread(thread*);
+bool resumeThread(thread*);
+bool deleteThread(thread*);
 
 #ifdef __cplusplus
 }

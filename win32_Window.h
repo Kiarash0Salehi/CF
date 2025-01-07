@@ -7,7 +7,7 @@ extern "C"
 #endif
 
 int guiCreateWindow(WindowInfo windowInfo, Window* window, WindowEvent windowEvent);
-int MainLoop(Window* window);
+int MainLoop(const Window* window);
 
 #ifdef __cplusplus
 }

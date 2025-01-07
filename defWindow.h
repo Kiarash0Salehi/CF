@@ -45,15 +45,13 @@ typedef struct
 	uint8_t caption;
 } WindowInfo;
 
+typedef void (*THREADCALLBACK)(void*);
+
 typedef struct 
 {
     void* id;
-    void (*threadFunc)(void*);
-
-    bool (*start)(void);
-    bool (*stop)(void);
-    bool (*resume)(void);
-    bool (*shutdown)(void);
+    THREADCALLBACK threadFunc;
+	void* data;
 } thread;
 
 typedef struct

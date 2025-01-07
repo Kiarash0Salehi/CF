@@ -2,39 +2,30 @@
 
 #include <process.h>
 
-thread Thread;
-void* data;
-
-static bool startThread()
+bool removeThread(thread* Thread)
 {
-    if(Thread.threadFunc == (void*)0) return 0;
-	Thread.id = (HANDLE)_beginthread(Thread.threadFunc, 0, data);
+	return CloseHandle(Thread->id);
 }
 
-static bool removeThread()
+bool stopThread(thread* Thread)
 {
-	return CloseHandle(Thread.id);
-}
-
-static bool stopThread()
-{
-	DWORD e = SuspendThread(Thread.id);
+	DWORD e = SuspendThread(Thread->id);
 	return (e > (DWORD)-1) ? 1 : 0;
 }
 
-static bool resumeThread()
+bool resumeThread(thread* Thread)
 {
-	DWORD e = ResumeThread(Thread.id);
+	DWORD e = ResumeThread(Thread->id);
 	return (e > (DWORD)-1) ? 1 : 0;
 }
 
-bool initThread(thread* Thread, void (*func)(void*), void* _data)
+bool initThread(thread* Thread, THREADCALLBACK func, void* _data)
 {
     memset(Thread, 0, sizeof(thread));
+    if(func == (void*)0) return 0;
     Thread->threadFunc = func;
-    data = _data;
-    Thread->start = startThread;
-    Thread->stop = stopThread;
-    Thread->resume = resumeThread;
-    Thread->shutdown = removeThread;
+    Thread->data = _data;
+    
+	Thread->id = (HANDLE)_beginthread(func, 0, _data);
+    return (Thread->id == (void*)0) ? -1 : 0;
 }
