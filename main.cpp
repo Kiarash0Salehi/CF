@@ -29,32 +29,32 @@ void keydown(unsigned char key)
 
 void create(void* we)
 {
-	WindowInfo winInfo = {};
+	WindowConfigure winInfo = {};
 	Window Mainwindow;
 	Window Childwindow;
-	WindowEvent* windowEvent = static_cast<WindowEvent*>(we);
+	WindowEvent windowEvent = *(WindowEvent*)we;
 
 	winInfo.title = "test";
 	winInfo.caption = true;
 	winInfo.child = false;
 	winInfo.fullscreen = false;
 	winInfo.name = "testClass";
-	winInfo.height = 600;
-	winInfo.width = 800;
+	winInfo.height = 300;
+	winInfo.width = 500;
 	winInfo.resizable = false;
 
 
 	int result;
-	if ((result = guiCreateWindow(winInfo, &Mainwindow, *windowEvent))) printf("error : %d\n", result);
+	if ((result = guiCreateWindow(winInfo, &Mainwindow, windowEvent))) printf("error : %d\n", result);
 	winInfo.title = "child";
-	winInfo.caption = false;
+	winInfo.caption = true;
 	winInfo.child = true;
 	winInfo.fullscreen = false;
 	winInfo.name = "testClass";
 	winInfo.height = 300;
 	winInfo.width = 600;
 	winInfo.resizable = true;
-	if ((result = guiCreateWindow(winInfo, &Childwindow, *windowEvent))) printf("error : %d\n", result);
+	if ((result = guiCreateWindow(winInfo, &Childwindow, windowEvent))) printf("error : %d\n", result);
 	printf("create Thread\n");
 	MainLoop(&Mainwindow);
 };
@@ -71,7 +71,7 @@ int VGMain
 	thread _Thread;
 	initThread(&_Thread, (THREADCALLBACK)create, (void*)&eventHandle);
 
-	while(running); puts("main thread output\n");
-	//deleteThread(&_Thread);
+	while(running) puts("main thread output\n");
+	deleteThread(&_Thread);
 	return 0;
 }

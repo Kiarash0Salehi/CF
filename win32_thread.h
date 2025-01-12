@@ -1,6 +1,9 @@
 #pragma once
 #include "defWindow.h"
 
+#ifndef _WIN32_THREAD_H_
+#define _WIN32_THREAD_H_
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -15,3 +18,4 @@ bool deleteThread(thread*);
 }
 #endif
 
+#endif // _WIN32_THREAD_H_

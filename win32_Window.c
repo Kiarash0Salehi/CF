@@ -1,12 +1,13 @@
 #include "defWindow.h"
 
 #include <stdio.h>
+#include "win32_Window.h"
 
 static WindowEvent windowEvent;
 static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 static bool caption;
 
-int guiCreateWindow(WindowInfo windowInfo, Window* window, WindowEvent _windowEvent)
+int guiCreateWindow(WindowConfigure windowInfo, Window* window, WindowEvent _windowEvent)
 {
 	memset(window, 0, sizeof(Window));
 	memcpy(&windowEvent, &_windowEvent, sizeof(WindowEvent));

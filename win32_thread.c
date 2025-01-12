@@ -2,7 +2,7 @@
 
 #include <process.h>
 
-bool removeThread(thread* Thread)
+bool deleteThread(thread* Thread)
 {
 	return CloseHandle(Thread->id);
 }
