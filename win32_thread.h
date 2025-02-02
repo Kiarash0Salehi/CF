@@ -9,7 +9,7 @@ extern "C"
 {
 #endif
 
-bool initThread(thread*, THREADCALLBACK, void*);
+bool initThread(thread*, THREADCALLBACK, size_t numArgs, ...);
 bool stopThread(thread*);
 bool resumeThread(thread*);
 bool deleteThread(thread*);

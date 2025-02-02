@@ -9,12 +9,12 @@ extern "C"
 {
 #endif
 
-WindowEvent EmptyWindowEvent();
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _WINDOWEVENT_H_
-
-
+WindowEvent DefWindowEvent();
+						  
+#ifdef __cplusplus		  
+}						  
+#endif					  
+						  
+#endif // _WINDOWEVENT_H_ 
+						  
+						  

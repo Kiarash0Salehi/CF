@@ -1,77 +1,76 @@
 
 
+#define USE_WINDOW_STRUCT_
 
-#include "win32_Window.h"
 #include "win32_thread.h"
 #include "WindowEvent.h"
 #include "Image.h"
+#include "win32_Window.h"
 
 #include <stdio.h>
 #include <thread>
 #include <functional>
 
+static Window Mainwindow;
 bool running = 1;
 
-void Init()
+void Init(Window* window)
 {
 	printf("init\n");
+	//TerminateThread(((WindowStruct*)window)->this_thread.id, 0);
+	//ExitThread(0);
+	
+	int x = 10;
+	setWindowUserDataPointer(window, &x);
 }
-void Quit(int code)
-{
+void Quit(Window* window, int code)
+{	
+	uint32_t x = 0, y = 0;
+	for(int i = 0; i < 6; i++)
+	getWindowDimensions(window, &x, &y);
+
+	printf("width : %d, height : %d\n", x, y);
 	printf("quit code : %d\n", code);
 	running = 0;
 }
-void keydown(unsigned char key)
+void keydown(Window* window, uintptr_t key)
 {
 	if (key == 'Q') exit(1);
-	OutputDebugStringA((const char*) & key);
+	int c = *(int*)getWindowUserDataPointer(window);
+	printf("user data : %d\n", c);
 }
-
-void create(void* we)
+void keyup(Window* window, uintptr_t key)
 {
-	WindowConfigure winInfo = {};
-	Window Mainwindow;
-	Window Childwindow;
-	WindowEvent windowEvent = *(WindowEvent*)we;
-
-	winInfo.title = "test";
-	winInfo.caption = true;
-	winInfo.child = false;
-	winInfo.fullscreen = false;
-	winInfo.name = "testClass";
-	winInfo.height = 300;
-	winInfo.width = 500;
-	winInfo.resizable = false;
-
-
-	int result;
-	if ((result = guiCreateWindow(winInfo, &Mainwindow, windowEvent))) printf("error : %d\n", result);
-	winInfo.title = "child";
-	winInfo.caption = true;
-	winInfo.child = true;
-	winInfo.fullscreen = false;
-	winInfo.name = "testClass";
-	winInfo.height = 300;
-	winInfo.width = 600;
-	winInfo.resizable = true;
-	if ((result = guiCreateWindow(winInfo, &Childwindow, windowEvent))) printf("error : %d\n", result);
-	printf("create Thread\n");
-	MainLoop(&Mainwindow);
-};
-
+	
+}
 
 int VGMain
 {
 	
-	WindowEvent eventHandle = EmptyWindowEvent();
+	WindowEvent eventHandle = {};
 	eventHandle.OnUserInitialize = Init;
 	eventHandle.OnUserQuit = Quit;
-	eventHandle.OnUserKeyDown = keydown;
+	eventHandle.OnUserKeyDown = (ONUSERKEYDOWNCALLBACK)keydown;
+	eventHandle.OnUserKeyUp = keyup;
 
-	thread _Thread;
-	initThread(&_Thread, (THREADCALLBACK)create, (void*)&eventHandle);
+	WindowConfigure winInfo = {};
+	Mainwindow = 0;
 
-	while(running) puts("main thread output\n");
-	deleteThread(&_Thread);
+	winInfo.title = "test";
+	winInfo.appName = "t";
+	winInfo.Size.height = 500;
+	winInfo.Size.width = 500;
+	winInfo.Size.flags = WC_SIZE_XCENTER | WC_SIZE_YCENTER;
+	winInfo.flags = WC_FLAG_CAPTION | WC_FLAG_RESIZABLE;
+
+
+	int result;
+	if ((result = GFCreateWindow(winInfo, &Mainwindow, &eventHandle))) { printf("error : %d\n", result); __debugbreak(); }
+
+	while (running)
+	{
+		if(!(result = doEvent(&Mainwindow))) printf("event error : %d", result);
+	}
+	
 	return 0;
 }

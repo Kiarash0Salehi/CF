@@ -1,17 +1,17 @@
 #include "defWindow.h"
 
-void OnUserMouseMove(int x, int y) {}
-void OnUserMouseWheel(float pos) {}
-void OnUserMouseDown(unsigned char right) {}
-void OnUserKeyDown(unsigned char key) {}
-void OnUserKeyUp(unsigned char key) {}
-void OnUserResize(int width, int height) {}
-void OnUserInitialize() {}
-void OnUserPaint() {}
-void OnUserMove(int x, int y) {}
-void OnUserQuit(int code) {}
+static void OnUserMouseMove(Window* window, int x, int y) {}
+static void OnUserMouseWheel(Window* window, float pos) {}
+static void OnUserMouseDown(Window* window, unsigned char key) {}
+static void OnUserKeyDown(Window* window, unsigned char key) {}
+static void OnUserKeyUp(Window* window, unsigned char key) {}
+static void OnUserResize(Window* window, int width, int height) {}
+static void OnUserInitialize(Window* window) {}
+static void OnUserRender(Window* window) {}
+static void OnUserMove(Window* window, int x, int y) {}
+static void OnUserQuit(Window* window, int code) {}
 
-WindowEvent EmptyWindowEvent()
+WindowEvent* DefWindowEvent()
 {
 	WindowEvent windowEvent;
 	windowEvent.OnUserInitialize = OnUserInitialize;
@@ -21,8 +21,8 @@ WindowEvent EmptyWindowEvent()
 	windowEvent.OnUserMouseMove = OnUserMouseMove;
 	windowEvent.OnUserMouseWheel = OnUserMouseWheel;
 	windowEvent.OnUserMove = OnUserMove;
-	windowEvent.OnUserPaint = OnUserPaint;
+	windowEvent.OnUserRender = OnUserRender;
 	windowEvent.OnUserQuit = OnUserQuit;
 	windowEvent.OnUserResize = OnUserResize;
-	return windowEvent;
+	return &windowEvent;
 }

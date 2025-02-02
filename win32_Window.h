@@ -9,8 +9,13 @@ extern "C"
 {
 #endif
 
-int guiCreateWindow(WindowConfigure windowInfo, Window* window, WindowEvent windowEvent);
-int MainLoop(const Window* window);
+int GFCreateWindow(WindowConfigure windowInfo, Window* window, WindowEvent* windowEvent);
+void getWindowDimensions(Window* window, uint32_t* width, uint32_t* height);
+void* getWindowUserDataPointer(Window* window);
+void setWindowUserDataPointer(Window* window, void* data);
+HWND getWin32Window(Window* window);
+HINSTANCE getWin32Instance(Window* window);
+bool doEvent(Window* window);
 
 #ifdef __cplusplus
 }

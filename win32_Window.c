@@ -1,20 +1,38 @@
+#define USE_WINDOW_STRUCT_
+
 #include "defWindow.h"
 
 #include <stdio.h>
 #include "win32_Window.h"
 
+#define WM_NOCAPTIONDRAG (WM_USER + 1)
+
+static WindowStruct windowStruct(Window window)
+{
+	return *(WindowStruct*)&window;
+}
+
+#define name(o) #o
+
 static WindowEvent windowEvent;
 static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
-static bool caption;
 
-int guiCreateWindow(WindowConfigure windowInfo, Window* window, WindowEvent _windowEvent)
+int GFCreateWindow(WindowConfigure windowInfo, Window* window_handle, WindowEvent* _windowEvent)
 {
-	memset(window, 0, sizeof(Window));
-	memcpy(&windowEvent, &_windowEvent, sizeof(WindowEvent));
+	memcpy(&windowEvent, _windowEvent, sizeof(WindowEvent));
+	WindowStruct window = *(WindowStruct*)(uintptr_t)window_handle;
+	if (*window_handle == 0) 
+	{ 
+		memset(&window, 0, 8);
+		memset(&window.win32, 0, sizeof(window.win32));
+	}
+	
+	
+
 	DWORD dwStyle, dwExStyle;
 	RECT wRect = {0};
 	int fullwidth, fullheight, x, y;
-	if (!window->win32.windowClass) // cheak if window class isn't created
+	if (window.win32.windowClass == 0) // cheak if window class isn't created
 	{
 		WNDCLASSA wc;
 		wc.cbClsExtra = 0;
@@ -22,40 +40,38 @@ int guiCreateWindow(WindowConfigure windowInfo, Window* window, WindowEvent _win
 		wc.hbrBackground = 0;
 		wc.hCursor = LoadCursorA(0, MAKEINTRESOURCEA(32512));
 		wc.hIcon = LoadIconA(0, MAKEINTRESOURCEA(32517));
-		wc.hInstance = GetModuleHandleA(0);
+		wc.hInstance = window.win32.hInstance;
 		wc.lpfnWndProc = (WNDPROC)windowProc;
-		if (windowInfo.name)
+		if (windowInfo.appName && windowInfo.appName != "")
 		{
-			wc.lpszClassName = windowInfo.name;
-			window->win32.windowClass = windowInfo.name;
+			wc.lpszClassName = windowInfo.appName;
+			window.win32.windowClass = windowInfo.appName;
 		}
 		else
 		{
 			wc.lpszClassName = windowInfo.title;
-			window->win32.windowClass = windowInfo.title;
+			window.win32.windowClass = windowInfo.title;
 		}
 		
 		
 		wc.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
 		wc.lpszMenuName = 0;
 		wc.cbClsExtra = 0;
-		RegisterClassA(&wc);
+		if(!RegisterClassA(&wc)) return -1;
 	}
 
 	dwStyle = WS_VISIBLE | WS_OVERLAPPED;
 	dwExStyle = WS_EX_APPWINDOW;
-
-	window->width = windowInfo.width;
-	window->height = windowInfo.height;
 	
 
-	if (windowInfo.fullscreen)
+	if (windowInfo.flags & WC_FLAG_FULLSCREEN)
 	{
+		long result;
 		dwExStyle |= WS_EX_TOPMOST;
 		dwStyle |= WS_POPUPWINDOW;
 		MONITORINFO monitorInfo = { 0 };
 		monitorInfo.cbSize = sizeof(MONITORINFO);
-		GetMonitorInfoA(MonitorFromWindow(GetDesktopWindow(),MONITOR_DEFAULTTONEAREST), &monitorInfo);
+		GetMonitorInfoA(MonitorFromWindow(GetDesktopWindow(), MONITOR_DEFAULTTONEAREST), &monitorInfo);
 		DEVMODE dm;
 		memset(&dm, 0, sizeof(DEVMODE));
 		dm.dmSize = sizeof(DEVMODE);
@@ -66,107 +82,164 @@ int guiCreateWindow(WindowConfigure windowInfo, Window* window, WindowEvent _win
 		
 		fullwidth = monitorInfo.rcMonitor.right;
 		fullheight = monitorInfo.rcMonitor.bottom;
+		windowInfo.Size.width = fullwidth;
+		windowInfo.Size.height = fullheight;
 		x = monitorInfo.rcMonitor.left;
 		y = monitorInfo.rcMonitor.top;
-		long result;
+		
 		if ((result = ChangeDisplaySettings(&dm, CDS_FULLSCREEN)) != DISP_CHANGE_SUCCESSFUL) { MessageBoxA(0, "failed to change dispaly sttings", "Error", MB_OK); return result; }
 	}
 	else
 	{
 		dwStyle |= WS_MINIMIZEBOX;
-		if (windowInfo.resizable)
+		if (windowInfo.flags & WC_FLAG_RESIZABLE && windowInfo.flags & WC_FLAG_CAPTION)
 		{
 			dwStyle |= WS_MAXIMIZEBOX | WS_THICKFRAME;
 			dwExStyle |= WS_EX_WINDOWEDGE;
 		}
 
-		if (windowInfo.caption)
+		if (windowInfo.flags & WC_FLAG_CAPTION)
 		{
 			dwStyle |= WS_CAPTION | WS_SYSMENU;
-			caption = true;
 		}
 		else
 		{
-			dwStyle &= WS_OVERLAPPED;
+			dwStyle &= ~WS_OVERLAPPED;
 			dwStyle |= WS_POPUPWINDOW ;
-			if(windowInfo.resizable)
+			if(windowInfo.flags & WC_FLAG_RESIZABLE)
 			{
 				dwStyle |= WS_THICKFRAME;
 			}
-			caption = false;
 		}
-		SetRect(&wRect, 0, 0, windowInfo.width, windowInfo.height);
+		SetRect(&wRect, 0, 0, windowInfo.Size.width, windowInfo.Size.height);
 		AdjustWindowRectEx(&wRect, dwStyle, 0, dwExStyle);
 		fullwidth = wRect.right - wRect.left;
 		fullheight = wRect.bottom - wRect.top;
-		x = (GetSystemMetrics(SM_CXSCREEN) / 2) / (fullwidth / 2);
-		y = (GetSystemMetrics(SM_CYSCREEN) / 2) / (fullheight / 2);
+		if (windowInfo.Size.flags & WC_SIZE_XCENTER)
+		{
+			x = (GetSystemMetrics(SM_CXSCREEN) / 2) - (fullwidth / 2);
+			windowInfo.Size.offsetX = x;
+		}
+		else 
+		{
+			x = windowInfo.Size.offsetX;
+		}
+		
+		if (windowInfo.Size.flags & WC_SIZE_YCENTER)
+		{
+			y = (GetSystemMetrics(SM_CYSCREEN) / 2) - (fullheight / 2);
+			windowInfo.Size.offsetY = y;
+		}
+		else
+		{
+			y = windowInfo.Size.offsetY;
+		}
+		
 	}
 
-	HWND parent = 0;
-	if(window->win32.m_hWnd) parent = GetParent(window->win32.m_hWnd);
+	
 
-	window->win32.m_hWnd = CreateWindowExA(
+	window.win32.m_hWnd = CreateWindowExA(
 		dwExStyle,
-		window->win32.windowClass,
+		window.win32.windowClass,
 		windowInfo.title,
 		dwStyle,
 		x,
 		y,
 		fullwidth,
 		fullheight,
-		parent,
+		window.win32.parent == 0 ? 0 : window.win32.parent,
 		0,
-		(HINSTANCE)GetModuleHandleA(0),
-		0
+		window.win32.hInstance,
+		&window_handle
 	);
+	if (!window.win32.m_hWnd) return -1;
 
-	ShowWindow(window->win32.m_hWnd, 1);
-	SetFocus(window->win32.m_hWnd);
+	printf("window created! \n");
+	
+	bool child = false;
+	if (!window.win32.parent) window.win32.parent = window.win32.m_hWnd; else child = true;
 
-	return 0;
-}
+	ShowWindow(window.win32.m_hWnd, 1);
+	SetFocus(window.win32.m_hWnd);
+	
+	window.wndcnfg = windowInfo;
+	window.System = WINDOWS;
+	window.this_thread.id = (void*)GetCurrentThread();
+	window.win32.hInstance = (HINSTANCE)GetModuleHandleA(0);
+	
+	int data = 0;
+	window.user_data = &data;
 
-int MainLoop(const Window* window)
-{
-	MSG message;
-	memset(&message, 0, sizeof(MSG));
-	uint8_t running = 1;
-	while (running)
+	if (!child)
 	{
-		if (PeekMessageA(&message, 0, 0, 0, PM_REMOVE))
-		{
-			if (message.message == WM_QUIT)
-			{
-				running = 0;
-				break;
-			}
-			TranslateMessage(&message);
-			DispatchMessage(&message);
-		}
+		*(WindowStruct*)window_handle = *(WindowStruct*)&window;
+	}
+	else
+	{
+		
 	}
 	return 0;
 }
 
+void getWindowDimensions(Window* window, uint32_t* width, uint32_t* height)
+{
+	if (!window) return;
+	*width = ((WindowStruct*)window)->wndcnfg.Size.width;
+	*height = ((WindowStruct*)window)->wndcnfg.Size.height;
+}
+
+void* getWindowUserDataPointer(Window* window)
+{
+	return ((WindowStruct*)window)->user_data;
+}
+
+void setWindowUserDataPointer(Window* window, void* data)
+{
+	((WindowStruct*)window)->user_data = data;
+}
+
+HWND getWin32Window(Window* window)
+{
+	return ((WindowStruct*)window)->win32.m_hWnd;
+}
+
+HINSTANCE getWin32Instance(Window* window)
+{
+	return ((WindowStruct*)window)->win32.hInstance;
+}
+
+bool doEvent(Window* window)
+{
+	BOOL result;
+	if (result = PeekMessage(&((WindowStruct*)window)->win32.message, getWin32Window(window), 0, 0, PM_REMOVE))
+	{
+		if (result == -1) return false;
+		TranslateMessage(&((WindowStruct*)window)->win32.message);
+		DispatchMessage(&((WindowStruct*)window)->win32.message);
+	}
+	return true;
+}
+
 // TO-DO : finish this windowProc function and write the rest of it
-LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (Msg)
 	{
 	case WM_CREATE:
 	{
-		windowEvent.OnUserInitialize();
+		SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)((LPCREATESTRUCT)lParam)->lpCreateParams);
+		if(windowEvent.OnUserInitialize != 0) windowEvent.OnUserInitialize((Window*)GetWindowLongPtrA(hWnd, GWLP_USERDATA));
 		return 0;
 	}
 	case WM_PAINT:
 	{
-		windowEvent.OnUserPaint();
+		if(windowEvent.OnUserRender != 0) windowEvent.OnUserRender((Window**)GetWindowLongPtrA(hWnd, GWLP_USERDATA));
 		return 0;
 	}
 	case WM_CLOSE:
-	case WM_QUIT:
 	{
-		windowEvent.OnUserQuit((int)wParam);
+		if(windowEvent.OnUserQuit != 0) windowEvent.OnUserQuit((Window**)GetWindowLongPtrA(hWnd, GWLP_USERDATA), (int)wParam);
 		DestroyWindow(hWnd);
 		return 0;
 	}
@@ -177,17 +250,23 @@ LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 	}
 	case WM_KEYDOWN:
 	{
-		windowEvent.OnUserKeyDown((unsigned char)wParam);
+		if(windowEvent.OnUserKeyDown != 0) windowEvent.OnUserKeyDown((Window**)GetWindowLongPtrA(hWnd, GWLP_USERDATA), wParam);
+		return 0;
+	}
+	case WM_KEYUP:
+	{
+		if (windowEvent.OnUserKeyUp != 0) windowEvent.OnUserKeyUp((Window**)GetWindowLongPtrA(hWnd, GWLP_USERDATA), wParam);
 		return 0;
 	}
 	case WM_NCHITTEST:
 	{
-		if(!caption)
+		if (((WindowStruct*)(Window**)GetWindowLongPtrA(hWnd, GWLP_USERDATA))->wndcnfg.flags & ~(WC_FLAG_CAPTION | WC_FLAG_FULLSCREEN))
 		{
-    		LRESULT position = DefWindowProc(hWnd, Msg, wParam, lParam);
-    		return position == HTCLIENT ? HTCAPTION : position;
+			LRESULT position = DefWindowProc(hWnd, Msg, wParam, lParam);
+			return position == HTCLIENT ? HTCAPTION : position;
 		}
-		else return 0;
+		else
+			return 0;
 	}
 	}
 	return DefWindowProcA(hWnd, Msg, wParam, lParam);
