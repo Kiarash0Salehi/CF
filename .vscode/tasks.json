@@ -1,0 +1,28 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "cmake",
+            "label": "Sample CMake build task with single target",
+            "command": "build",
+            "targets": [
+                "prj1"
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "Build task to build prj1"
+        },
+        {
+            "type": "cmake",
+            "label": "Sample CMake build task with multiple targets",
+            "command": "build",
+            "targets": [
+                "prj1",
+                "prj2"
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "Build task to build prj1 and prj2"
+        }
+    ]
+}

@@ -9,13 +9,13 @@ extern "C"
 {
 #endif
 
-int GFCreateWindow(WindowConfigure windowInfo, Window* window, WindowEvent* windowEvent);
+Window* GFCreateWindow(const WindowConfigure* windowInfo, const WindowEvent* windowEvent, Window* share);
 void getWindowDimensions(Window* window, uint32_t* width, uint32_t* height);
 void* getWindowUserDataPointer(Window* window);
 void setWindowUserDataPointer(Window* window, void* data);
 HWND getWin32Window(Window* window);
 HINSTANCE getWin32Instance(Window* window);
-bool doEvent(Window* window);
+bool pollEvent();
 
 #ifdef __cplusplus
 }

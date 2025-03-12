@@ -4,6 +4,7 @@
 #define _DEF_WINDOW_H_
 
 #ifdef _WIN32
+#define WIN32
 #include <windows.h>
 #include <windowsx.h>
 
@@ -11,6 +12,10 @@
 #define VGMain WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow)
 #else
 #define VGMain main()
+#endif
+
+#ifndef DEBUG
+#define __debugbreak() 
 #endif
 
 #endif // _WIN32
@@ -22,6 +27,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include <wchar.h>
+#include <assert.h>
 #else
 #include <cstdint>
 #include <cstdio>
@@ -29,35 +36,49 @@
 #include <cstdbool>
 #include <cstddef>
 #include <cstdarg>
+#include <cwchar>
+#include <cassert>
 #endif
 
 #define failed -1
 
-
+#define MAX_STRLEN (size_t)256
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-	typedef void* Window;
+	typedef uintptr_t Window;
 
-	typedef void (*ONUSERMOUSEMOVECALLBACK)(Window*, int x, int y);
-	typedef void (*ONUSERMOUSEWHEELCALLBACK)(Window*, float);
-	typedef void (*ONUSERMOUSEDOWNCALLBACK)(Window*, unsigned char);
-	typedef void (*ONUSERKEYDOWNCALLBACK)(Window*, uintptr_t);
-	typedef void (*ONUSERKEYUPCALLBACK)(Window*, uintptr_t);
-	typedef void (*ONUSERRESIZECALLBACK)(Window*, int, int);
+#define MK_RB 1 // rigtht mouse button
+#define MK_MB 2 // middle mouse button
+#define MK_LB 3 // left mouse button
+#define MK_XB1 4 // X1 mouse button
+#define MK_XB2 5 // X2 mouse button
+
+	typedef void (*ONUSERDRAGFILECALLBACK)(Window*, const char** files, uint32_t count);
+	typedef void (*ONUSERMOUSEMOVECALLBACK)(Window*, int x, int y, int key);
+	typedef void (*ONUSERMOUSEWHEELCALLBACK)(Window*, int x, int y, int dir);
+	typedef void (*ONUSERMOUSEDOWNCALLBACK)(Window*, int x, int y, int keyIndex);
+	typedef void (*ONUSERMOUSEUPCALLBACK)(Window*, int x, int y, int keyIndex);
+	typedef void (*ONUSERMOUSEDOUBLECLKCALLBACK)(Window*, int x, int y, int keyIndex);
+	typedef void (*ONUSERKEYDOWNCALLBACK)(Window*, uintptr_t key);
+	typedef void (*ONUSERKEYUPCALLBACK)(Window*, uintptr_t key);
+	typedef void (*ONUSERRESIZECALLBACK)(Window*, int width, int height);
 	typedef void (*ONUSERINITIALIZECALLBACK)(Window*);
 	typedef void (*ONUSERRENDERCALLBACK)(Window*);
-	typedef void (*ONUSERMOVECALLBACK)(Window*, int, int);
-	typedef void (*ONUSERQUITCALLBACK)(Window*, int);
+	typedef void (*ONUSERMOVECALLBACK)(Window*, int x, int y);
+	typedef void (*ONUSERQUITCALLBACK)(Window*, int quitCode);
 				 
-	typedef struct WindowEvent
+	typedef struct
 	{
+		ONUSERDRAGFILECALLBACK OnUserDragFile;
 		ONUSERMOUSEMOVECALLBACK OnUserMouseMove;
 		ONUSERMOUSEWHEELCALLBACK OnUserMouseWheel;
 		ONUSERMOUSEDOWNCALLBACK OnUserMouseDown;
+		ONUSERMOUSEDOUBLECLKCALLBACK OnUserMouseDoubleClick;
+		ONUSERMOUSEUPCALLBACK OnUserMouseUp;
 		ONUSERKEYDOWNCALLBACK OnUserKeyDown;
 		ONUSERKEYUPCALLBACK OnUserKeyUp;
 		ONUSERRESIZECALLBACK OnUserResize;
@@ -74,7 +95,7 @@ extern "C"
 #define WC_FLAG_RESIZABLE (1 << 1)
 #define WC_FLAG_CAPTION (1 << 2)
 #define WC_FLAG_CHILD (1 << 3)
-
+#define WC_FLAG_ACCEPTDRAGFILES (1 << 4)
 
 	typedef struct WindowConfigure
 	{
@@ -95,16 +116,28 @@ extern "C"
 
 	typedef struct
 	{
+		THREADCALLBACK callback;
 		void* id;
-		THREADCALLBACK threadFunc;
-		void* data;
+		void* user_data;
 	} thread;
 
+	typedef union 
+	{
+		uint32_t 	errorIndex;
+		char*		message;
+		void*		user_data;
+		bool		success : 1;
+	} *ErrorMessage, _ErrorMessage;
 	
 
 #ifdef USE_WINDOW_STRUCT_
 	typedef struct
 	{
+		void* 			user_data;
+		thread 			this_thread;
+		WindowConfigure wndcnfg;
+		WindowEvent		wndEvent;
+		
 		enum {
 			WINDOWS,
 			LINUX,
@@ -122,19 +155,14 @@ extern "C"
 		struct _win32
 		{
 #if defined(_WIN32) || defined(_WIN64)
-			HWND parent;
 			HWND m_hWnd;
-			const char* windowClass;
+			char* windowClass;
 			HINSTANCE hInstance;
-			MSG message;
 #else
 #define __NON_WINDOWS_OPRATING_SYSTEM_ 1
 			int null;
 #endif
 		} win32;
-		void* user_data;
-		thread this_thread;
-		WindowConfigure wndcnfg;
 	} WindowStruct;
 #endif // USE_WINDOW_STRUCT_
 

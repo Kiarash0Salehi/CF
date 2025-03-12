@@ -1,4 +1,5 @@
-#include "defImage.h"
+#include "./header/defImage.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
