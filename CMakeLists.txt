@@ -15,7 +15,7 @@ set(DIRSRC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(LibSRC ${DIRSRC}/win32_Window.c ${DIRSRC}/Image.c ${DIRSRC}/win32_thread.c)
 set(MainSRC test.c)
 
-add_library(CF ${LibSRC})
+add_library(CF ${LibSRC} )
 
 include_directories("${DIRSRC}/header")
 
@@ -24,7 +24,7 @@ if(DIST STREQUAL "ON")
 add_compile_definitions(DIST=${BUILD_TYPE})
 add_executable (${PROJECT_NAME} WIN32 ${LibSRC} ${MainSRC})
 else()
-add_executable (${PROJECT_NAME} ${LibSRC} ${MainSRC})
+add_executable (${PROJECT_NAME} ${LibSRC} ${MainSRC} )
 endif()
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)

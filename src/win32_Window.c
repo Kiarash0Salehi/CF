@@ -261,6 +261,18 @@ HINSTANCE getWin32Instance(Window* window)
 	return ((WindowStruct*)window)->win32.hInstance;
 }
 
+void setWindowTitle(Window* window, const char* const title)
+{
+	assert("null window" && window);
+	if (!title) return;
+	if (title != ((WindowStruct*)window)->wndcnfg.title)
+	{
+		((WindowStruct*)window)->wndcnfg.title = title;
+	}
+
+	SetWindowTextA(((WindowStruct*)window)->win32.m_hWnd, title);
+}
+
 bool pollEvent()
 {
 	MSG message;

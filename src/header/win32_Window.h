@@ -30,6 +30,7 @@ Window* GFCreateWindow(const WindowConfigure* windowInfo, const WindowEvent* win
 void getWindowDimensions(Window* window, uint32_t* width, uint32_t* height);
 void* getWindowUserDataPointer(Window* window);
 void setWindowUserDataPointer(Window* window, void* data);
+void setWindowTitle(Window* window, const char* const title);
 HWND getWin32Window(Window* window);
 HINSTANCE getWin32Instance(Window* window);
 bool pollEvent();

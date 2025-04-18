@@ -22,9 +22,14 @@ void resize(Window* window, int width, int height)
     int* ptr = getWindowUserDataPointer(window);
     if(ptr)
     printf("width : %d height : %d window pointer : %p user data : %d\n", width, height, window, *ptr);
+	setWindowTitle(window, "resized");
 }
 
+#ifdef DIST
+int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+#else
 int main()
+#endif
 {
     // initize the window configure and window event
 
