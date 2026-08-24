@@ -1,0 +1,15 @@
+﻿set(LibSRC Image.c)
+
+if(LINUX)
+	message("Building for X11.")
+	target_link_libraries(${PROJECT_NAME} PRIVATE X11)
+	list(APPEND LibSRC x11_Window.c)
+elseif(WIN32)
+	message("Building for Win32.")
+	list(APPEND LibSRC win32_Window.c win32_thread.c) 
+endif()
+message(${LibSRC})
+add_library(${PROJECT_NAME} ${LibSRC})
+add_library(CF ALIAS ${PROJECT_NAME})
+
+target_include_directories(${PROJECT_NAME} PUBLIC ../include)

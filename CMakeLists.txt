@@ -6,6 +6,3 @@ project("CubicFramework")
 
 add_subdirectory(src)
 
-if(TESTCF)
-	add_subdirectory(test)
-endif()
