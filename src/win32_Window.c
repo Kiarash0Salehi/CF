@@ -18,7 +18,9 @@
 
 #define USE_WINDOW_STRUCT_
 
-#include "./header/defWindow.h"
+#include "./defWindow.h"
+
+#ifdef _WIN32
 
 #include <shellapi.h>
 
@@ -28,18 +30,15 @@
 
 static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
-Window* GFCreateWindow(
+CFWindow CFCreateWindow(
 	const WindowConfigure* 				windowInfo, 
-	const WindowEvent* 					windowEvent, 
-	Window* 							share)
+	const WindowEventHandle* 					windowEvent, 
+	CFWindow 							share)
 {
 	WindowStruct* _window = calloc(1, sizeof(WindowStruct));
 
-	{
-		memset(&_window->win32, 0, sizeof(_window->win32));
-	}
 	if(windowEvent)
-		memcpy(&_window->wndEvent, windowEvent, sizeof(WindowEvent));
+		memcpy(&_window->wndEvent, windowEvent, sizeof(WindowEventHandle));
 	memcpy(&_window->wndcnfg, windowInfo, sizeof(WindowConfigure));
 
 	_window->win32.hInstance = (HINSTANCE)GetModuleHandleA(0);
@@ -49,12 +48,12 @@ Window* GFCreateWindow(
 	DWORD dwStyle, dwExStyle;
 	RECT wRect = {0};
 	int fullwidth, fullheight, x, y;
-	char* windowClassName = (char*)calloc(MAX_CLASS_NAME, 1);
+	char* windowClassName = 0;
 
 	WNDCLASSEXA wc = { 0 };
 	if (GetClassInfoExA(_window->win32.hInstance, windowInfo->appName, &wc) && share == 0) // check if window class is created get the information of the window class
 	{
-		strcpy(windowClassName, windowInfo->appName);
+		windowClassName = windowInfo->appName;
 	}
 	else if (share == 0 || ((WindowStruct*)share)->win32.windowClass == 0) // check if window class isn't created
 	{
@@ -76,7 +75,7 @@ Window* GFCreateWindow(
 		}
 		
 		
-		wc.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
+		wc.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
 		wc.lpszMenuName = 0;
 		wc.cbClsExtra = 0;
 		windowClassName = MAKEINTATOM(RegisterClassExA(&wc));
@@ -212,7 +211,7 @@ Window* GFCreateWindow(
 		return 0;
 	}
 
-	Window* window = (Window*)_window;
+	CFWindow window = (CFWindow)_window;
 
 	ShowWindow(_window->win32.m_hWnd, 1);
 	SetFocus(_window->win32.m_hWnd);
@@ -220,7 +219,7 @@ Window* GFCreateWindow(
 	if (_window->wndcnfg.flags & WC_FLAG_ACCEPTDRAGFILES)
 		DragAcceptFiles(_window->win32.m_hWnd, TRUE);
 
-	SendMessage(_window->win32.m_hWnd, WM_FCREATE, _window, 0);
+	SendMessageA(_window->win32.m_hWnd, WM_FCREATE, _window, 0);
 
 	/*result.errorIndex = 0;
 	result.message = "";
@@ -228,14 +227,14 @@ Window* GFCreateWindow(
 	return window;
 }
 
-void getWindowDimensions(Window* window, uint32_t* width, uint32_t* height)
+void getWindowDimensions(CFWindow window, uint32_t* width, uint32_t* height)
 {
 	assert("null window" && window);
 	*width = ((WindowStruct*)window)->wndcnfg.Size.width;
 	*height = ((WindowStruct*)window)->wndcnfg.Size.height;
 }
 
-void* getWindowUserDataPointer(Window* window)
+void* getWindowUserDataPointer(CFWindow window)
 {
 	assert("null window" && window);
 	if(((WindowStruct*)window)->user_data)
@@ -243,25 +242,35 @@ void* getWindowUserDataPointer(Window* window)
 	else return 0;
 }
 
-void setWindowUserDataPointer(Window* window, void* data)
+void setWindowUserDataPointer(CFWindow window, void* data)
 {
 	assert("null window" && window);
 	((WindowStruct*)window)->user_data = data;
 }
 
-HWND getWin32Window(Window* window)
+void setUserEventCallback(WindowEventHandle* event, CFWindow window)
 {
-	assert("null window" && window);
-	return ((WindowStruct*)window)->win32.m_hWnd;
+	((WindowStruct*)window)->wndEvent = *event;
 }
 
-HINSTANCE getWin32Instance(Window* window)
+WindowEventHandle* getWindowEventHandle(CFWindow window)
 {
-	assert("null window" && window);
-	return ((WindowStruct*)window)->win32.hInstance;
+	return &((WindowStruct*)window)->wndEvent;
 }
 
-void setWindowTitle(Window* window, const char* const title)
+void* getWin32Window(CFWindow window)
+{
+	assert("null window" && window);
+	return (void*)((WindowStruct*)window)->win32.m_hWnd;
+}
+
+void* getWin32Instance(CFWindow window)
+{
+	assert("null window" && window);
+	return (void*)((WindowStruct*)window)->win32.hInstance;
+}
+
+void setWindowTitle(CFWindow window, const char* const title)
 {
 	assert("null window" && window);
 	if (!title) return;
@@ -273,6 +282,31 @@ void setWindowTitle(Window* window, const char* const title)
 	SetWindowTextA(((WindowStruct*)window)->win32.m_hWnd, title);
 }
 
+static void _centerWindowPos(CFWindow window)
+{
+	MONITORINFO monitorInfo = { 0 };
+	monitorInfo.cbSize = sizeof(MONITORINFO);
+	GetMonitorInfoA(MonitorFromWindow(GetDesktopWindow(), MONITOR_DEFAULTTONEAREST), &monitorInfo);
+	int x = (monitorInfo.rcMonitor.right - ((WindowStruct*)window)->wndcnfg.Size.width) / 2;
+	int y = (monitorInfo.rcMonitor.bottom - ((WindowStruct*)window)->wndcnfg.Size.height) / 2;
+	SetWindowPos(((WindowStruct*)window)->win32.m_hWnd, 0, x, y, 0, 0, SWP_NOSIZE);
+	((WindowStruct*)window)->wndcnfg.Size.offsetX = x;
+	((WindowStruct*)window)->wndcnfg.Size.offsetX = y;
+}
+
+void setWindowSize(CFWindow window, int width, int height)
+{
+	assert("null window" && window);
+	((WindowStruct*)window)->wndcnfg.Size.width = width;
+	((WindowStruct*)window)->wndcnfg.Size.height = height;
+	SetWindowPos(((WindowStruct*)window)->win32.m_hWnd, 0, 0, 0, width, height, SWP_NOMOVE | SWP_DRAWFRAME);
+}
+
+
+
+//static MSG message;
+static Event event;
+
 bool pollEvent()
 {
 	MSG message;
@@ -282,14 +316,26 @@ bool pollEvent()
 
 		TranslateMessage(&message);
 		DispatchMessage(&message);
+
+		if (message.message == WM_SIZE) event.type = ONUSERRESIZE;
+	}
+	else
+	{
+		memset(&event.event, 0, sizeof(event.event));
+		event.type = 0;
 	}
 
 	return true;
 }
 
+Event* CFGetWindowEvent()
+{
+	return &event;
+}
+
 static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
-	Window* window = (Window*)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
+	CFWindow window = (CFWindow)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
 	if (!window)
 	{
 		if (Msg == WM_NCCREATE)
@@ -310,20 +356,32 @@ static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 		}
 	}
 
+	if(Msg != WM_QUIT)
+	{
+		event.window = window;
+		event.handler = &((WindowStruct*)window)->wndEvent;
+	}
+
 	switch (Msg)
 	{
 	case WM_FCREATE:
 	{
-		if (((WindowStruct*)wParam)->wndEvent.OnUserInitialize) ((WindowStruct*)wParam)->wndEvent.OnUserInitialize((Window*)wParam);
+		event.type = ONUSERINITIALIZE;
+		event.event.ONUSERINITIALIZE.window = window;
+		if (((WindowStruct*)wParam)->wndEvent.OnUserInitialize) ((WindowStruct*)wParam)->wndEvent.OnUserInitialize((CFWindow*)wParam);
 		break;
 	}
 	case WM_PAINT:
 	{
+		event.type = ONUSERRENDER;
+		event.event.ONUSERRENDER.window = window;
 		if (((WindowStruct*)window)->wndEvent.OnUserRender) ((WindowStruct*)window)->wndEvent.OnUserRender(window);
 		break;
 	}
 	case WM_CLOSE:
 	{
+		event.type = ONUSERQUIT;
+		event.event.ONUSERQUIT.quitCode = (int)wParam;
 		if(((WindowStruct*)window)->wndEvent.OnUserQuit) ((WindowStruct*)window)->wndEvent.OnUserQuit(window, (int)wParam);
 		break;
 	}
@@ -340,11 +398,15 @@ static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 	}
 	case WM_KEYDOWN:
 	{
+		event.type = ONUSERKEYDOWN;
+		event.event.ONUSERKEYDOWN.key = wParam;
 		if(((WindowStruct*)window)->wndEvent.OnUserKeyDown) ((WindowStruct*)window)->wndEvent.OnUserKeyDown(window, wParam);
 		break;
 	}
 	case WM_KEYUP:
 	{
+		event.type = ONUSERKEYUP;
+		event.event.ONUSERKEYUP.key = wParam;
 		if (((WindowStruct*)window)->wndEvent.OnUserKeyUp) ((WindowStruct*)window)->wndEvent.OnUserKeyUp(window, wParam);
 		break;
 	}
@@ -352,6 +414,9 @@ static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 	{
 		int x = GET_X_LPARAM(lParam);
 		int y = GET_Y_LPARAM(lParam);
+		event.type = ONUSERMOVE;
+		event.event.ONUSERMOVE.x = x;
+		event.event.ONUSERMOVE.y = y;
 		if (((WindowStruct*)window)->wndEvent.OnUserMove) ((WindowStruct*)window)->wndEvent.OnUserMove(window, x, y);
 		break;
 	}
@@ -363,6 +428,14 @@ static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 		int height = rect.bottom - rect.top;
 		((WindowStruct*)window)->wndcnfg.Size.width = width;
 		((WindowStruct*)window)->wndcnfg.Size.height = height;
+		event.type = ONUSERRESIZE;
+		*(uint32_t*)&event.event.ONUSERRESIZE = *(uint32_t*)&((WindowStruct*)window)->wndcnfg.Size;
+		((uint32_t*)&event.event.ONUSERRESIZE)[1] = ((uint32_t*)&((WindowStruct*)window)->wndcnfg.Size)[1];
+		/* asm:
+		* movl $_event, %esp
+		* movl 32(%window), 12(%esp)
+		* movl 36(%window), 16(%esp)
+		*/
 		if (((WindowStruct*)window)->wndEvent.OnUserResize) ((WindowStruct*)window)->wndEvent.OnUserResize(window, width, height);
 		break;
 	}
@@ -400,6 +473,10 @@ static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		}
+		event.type = ONUSERMOUSEMOVE;
+		event.event.ONUSERMOUSEMOVE.x = x;
+		event.event.ONUSERMOUSEMOVE.y = y;
+		event.event.ONUSERMOUSEMOVE.key = key;
 		if (((WindowStruct*)window)->wndEvent.OnUserMouseMove) ((WindowStruct*)window)->wndEvent.OnUserMouseMove(window, x, y, key);
 		break;
 	}
@@ -408,6 +485,10 @@ static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 		int wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam) / 120;
 		int x = GET_X_LPARAM(lParam);
 		int y = GET_Y_LPARAM(lParam);
+		event.type = ONUSERMOUSEWHEEL;
+		event.event.ONUSERMOUSEWHEEL.x = x;
+		event.event.ONUSERMOUSEWHEEL.y = y;
+		event.event.ONUSERMOUSEWHEEL.dir = wheelDelta;
 		if (((WindowStruct*)window)->wndEvent.OnUserMouseWheel) ((WindowStruct*)window)->wndEvent.OnUserMouseWheel(window, x, y, wheelDelta);
 		break;
 	}
@@ -447,6 +528,10 @@ static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		}
+		event.type = ONUSERMOUSEDOUBLECLK;
+		event.event.ONUSERMOUSEDOUBLECLK.x = x;
+		event.event.ONUSERMOUSEDOUBLECLK.y = y;
+		event.event.ONUSERMOUSEDOUBLECLK.keyIndex = key;
 		if (((WindowStruct*)window)->wndEvent.OnUserMouseDoubleClick) ((WindowStruct*)window)->wndEvent.OnUserMouseDoubleClick(window, x, y, key);
 		break;
 	}
@@ -486,6 +571,10 @@ static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		}
+		event.type = ONUSERMOUSEDOWN;
+		event.event.ONUSERMOUSEDOWN.x = x;
+		event.event.ONUSERMOUSEDOWN.y = y;
+		event.event.ONUSERMOUSEDOWN.keyIndex = key;
 		if (((WindowStruct*)window)->wndEvent.OnUserMouseDown) ((WindowStruct*)window)->wndEvent.OnUserMouseDown(window, x, y, key);
 		break;
 	}
@@ -525,6 +614,10 @@ static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		}
+		event.type = ONUSERMOUSEUP;
+		event.event.ONUSERMOUSEUP.x = x;
+		event.event.ONUSERMOUSEUP.y = y;
+		event.event.ONUSERMOUSEUP.keyIndex = key;
 		if (((WindowStruct*)window)->wndEvent.OnUserMouseUp) ((WindowStruct*)window)->wndEvent.OnUserMouseUp(window, x, y, key);
 		break;
 	}
@@ -544,12 +637,17 @@ static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 				filePaths[i] = filePath;
 		}
 
+		event.type = ONUSERDRAGFILE;
+		event.event.ONUSERDRAGFILE.files = filePaths;
+		event.event.ONUSERDRAGFILE.count = fileCount;
+
 		if (((WindowStruct*)window)->wndEvent.OnUserDragFile) ((WindowStruct*)window)->wndEvent.OnUserDragFile(window, filePaths, fileCount);
 
 		for (UINT i = 0; i < fileCount; i++)
 		{
 			free(filePaths[i]);
 		}
+		free(filePaths);
 
 		DragFinish(hDrop); // Free resources
 		break;
@@ -557,3 +655,5 @@ static LRESULT windowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 	}
 	return DefWindowProc(hWnd, Msg, wParam, lParam);
 }
+
+#endif 

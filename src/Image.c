@@ -1,4 +1,4 @@
-#include "./header/defImage.h"
+#include "./defImage.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,7 +57,7 @@ Image readBMPFromFile(const char* filePath)
 	{
 		uint32_t color = (uint32_t)buffer[i + offset + 2] << 16 + (uint32_t)buffer[i + offset + 1] << 8 + (uint32_t)buffer[i + offset ];
 		printf("color : %X \n", color);
-		image.memory[i] = color;
+		((uint32_t*)image.memory)[i] = color;
 	}
 
 	fclose(f);

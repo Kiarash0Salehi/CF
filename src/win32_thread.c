@@ -16,7 +16,9 @@
 */
 
 #define USE_WINDOW_STRUCT_
-#include "./header/defWindow.h"
+#include "./defWindow.h"
+
+#ifdef _WIN32
 
 #include <process.h>
 
@@ -50,19 +52,26 @@ bool initThread(thread* Thread, THREADCALLBACK func, size_t numArgs, ...)
 	void** data;
 	if(numArgs != 0)
 	{
+		if(numArgs > 1)
 		data = calloc(numArgs, sizeof(void*));
 		va_list list;
 		va_start(list, numArgs);
-		for (size_t i = 0; i < numArgs; i++)
-		{
-			void* val = va_arg(list, void*);
-			data[i] = val;
-		}
+		if (numArgs > 1)
+			for (size_t i = 0; i < numArgs; i++)
+			{
+				void* val = va_arg(list, void*);
+				data[i] = val;
+			}
+		else
+			data = va_arg(list, void*);
+		
+		va_end(list);
 	}
 	else
 	{
 		data = calloc(1, sizeof(void*));
 	}
+	
 	
 
     Thread->callback = func;
@@ -71,7 +80,9 @@ bool initThread(thread* Thread, THREADCALLBACK func, size_t numArgs, ...)
     return (Thread->id == (void*)0) ? THREAD_FAILED : THREAD_SUCCESS;
 }
 
-thread getWindowThread(Window* window)
+thread getWindowThread(CFWindow* window)
 {
 	return ((WindowStruct*)window)->this_thread;
 }
+
+#endif
